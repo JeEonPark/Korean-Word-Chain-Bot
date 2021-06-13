@@ -9,8 +9,10 @@
   "author": "AstroJonny",
   "license": "ISC",
   "dependencies": {
+    "cheerio": "^1.0.0-rc.10",
     "discord.js": "^12.5.3",
     "express": "^4.17.1",
-    "request": "^2.88.2"
+    "request": "^2.88.2",
+    "xml2js": "^0.4.23"
   }
 }
