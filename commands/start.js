@@ -14,8 +14,13 @@ module.exports = {
             const msg = message.content;
 
             let isitCorrect = true;
-
-            if (msg.length == 1) {
+            
+            if(msg == "reset") {
+                isitCorrect = false;
+                isitFirst = true;
+                correctedWords = "";
+                message.channel.send("이전 단어가 초기화됩니다. 첫 번째 단어를 입력해주세요.");
+            } else if (msg.length == 1) {
                 //한 글자가 들어왔을 경우
                 isitCorrect = false;
                 message.channel.send("두 글자 이상의 단어를 입력해주세요!");
@@ -59,7 +64,7 @@ module.exports = {
                                 { name: 'It means', value: '.' },
                                 { name: 'Next word Starts with', value: `${correctedWords.charAt(correctedWords.length - 1)}` }
                             )
-                            .setFooter('Next!', 'https://discord.com/assets/6f26ddd1bf59740c536d2274bb834a05.png');
+                            .setFooter('초기화해야하는 경우 reset 을 입력하세요!', 'https://discord.com/assets/6f26ddd1bf59740c536d2274bb834a05.png');
 
                         message.channel.send(newEmbed);
                     }
