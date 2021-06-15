@@ -73,7 +73,7 @@ module.exports = {
                             isitFirst = false;
                         }
                         const newEmbed = new Discord.MessageEmbed()
-                            .setColor('#7cfc00')
+                            .setColor('#50D447')
                             .addFields(
                                 { name: `${message.author.username} said`, value: `${correctedWords}` },
                                 { name: 'It means', value: `${await whatsMean(correctedWords)}` },
