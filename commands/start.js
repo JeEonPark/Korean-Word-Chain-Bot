@@ -1,6 +1,8 @@
 const { MessageAttachment } = require("discord.js");
 const fs = require('fs');
 const Hangul = require('hangul-js');
+const cheerio = require('cheerio');
+const request = require('request');
 
 module.exports = {
     name: 'start',
@@ -21,6 +23,10 @@ module.exports = {
                 isitFirst = true;
                 correctedWords = "";
                 message.channel.send("이전 단어가 초기화됩니다. 첫 번째 단어를 입력해주세요.");
+            } else if (!Hangul.isCompleteAll(msg)) {
+                //오타가 있을 경우
+                isitCorrect = false;
+                message.channel.send("오타!!");
             } else if (msg.length == 1) {
                 //한 글자가 들어왔을 경우
                 isitCorrect = false;
@@ -28,7 +34,6 @@ module.exports = {
             } else {
                 if (isitFirst) {
                     //처음 경우일 경우
-                    isitFirst = false;
                     isitCorrect = true;
                 } else if (correctedWords.charAt(correctedWords.length - 1) != msg.charAt(0)) {
                     //끝 단어와 다음 단어가 같지 않을 경우
@@ -54,7 +59,9 @@ module.exports = {
                     message.channel.send("국어사전에 존재하지 않는 단어입니다! 다시 입력해주세요!");
                 } else {
                     if (finalData != "명사") {
-                        message.channel.send("명사로만 입력할 수 있습니다! 다시 입력해주세요!");
+                        message.channel.send("명사로만 입력할 수 있습니다! 다시 입력해주세요!\n해당단어의 품사 : " + finalData);
+                    } else if (isitHanbang(msg)) {
+                        message.channel.send("\"" + msg + "\"의 다음 단어가 너무 어렵거나 단어가 없어요!! 다시 입력해주세요!")
                     } else {
                         //모든게 정답
                         correctedWords = msg;
@@ -62,11 +69,14 @@ module.exports = {
                         //다음 단어에 두음법칙이 있는지 파악
                         let nextWords = whatisNext(correctedWords.charAt(correctedWords.length - 1));
 
+                        if (isitFirst) {
+                            isitFirst = false;
+                        }
                         const newEmbed = new Discord.MessageEmbed()
                             .setColor('#7cfc00')
                             .addFields(
                                 { name: `${message.author.username} said`, value: `${correctedWords}` },
-                                { name: 'It means', value: '.' },
+                                { name: 'It means', value: `${await whatsMean(correctedWords)}` },
                                 { name: 'Next word Starts with', value: `${nextWords}` }
                             )
                             .setFooter('다음 단어가 없거나 초기화해야하는 경우 reset 을 입력하세요!', 'https://discord.com/assets/6f26ddd1bf59740c536d2274bb834a05.png');
@@ -94,7 +104,7 @@ function getConfig(configName) {
 
 const isitExist = async (words) => {
     return new Promise(function (resolve, reject) {
-        var request = require('request');
+        
         let xml2js = require('xml2js');
         let parser = new xml2js.Parser();
         let openUrl = "https://stdict.korean.go.kr/api/search.do?certkey_no=2755&key=" + getConfig("koreanApiKey") + "&type_search=search&q=" + words;
@@ -105,7 +115,6 @@ const isitExist = async (words) => {
             parser.parseString(response.body, function (err, result) {
                 xmlToJson = result;
             });
-            console.log(xmlToJson);
             console.log(xmlToJson["channel"]["total"][0]);
 
             if (xmlToJson["channel"]["total"][0] == 0) {
@@ -155,6 +164,10 @@ function isItDooum(w1, w2) {
         } else if (disW1[1] == 'ㅣ' && disW2[1] == 'ㅣ') {
             result = true;
         } else if (disW1[1] == 'ㅓ' && disW2[1] == 'ㅓ') {
+            result = true;
+        } else if (disW1[1] == 'ㅡ' && disW2[1] == 'ㅡ') {
+            result = true;
+        } else if (disW1[1] == 'ㅏ' && disW2[1] == 'ㅏ') {
             result = true;
         }
     } else if (disW1[0] == 'ㄹ' && disW2[0] == 'ㄴ') { //한자음 라, 래, 로, 뢰, 루, 르 → 나, 내, 노, 뇌, 누, 느
@@ -211,18 +224,18 @@ function whatisNext(word) {
         nextWord = "유";
     } else if (Hangul.assemble([disWord[0], disWord[1]]) == "리") {
         nextWord = "이";
-    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "라") {
-        nextWord = "아";
-    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "래") {
-        nextWord = "애";
-    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "로") {
-        nextWord = "오";
-    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "루") {
-        nextWord = "우";
-    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "르") {
-        nextWord = "으";
     } else if (Hangul.assemble([disWord[0], disWord[1]]) == "러") {
         nextWord = "어";
+    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "라") {
+        nextWord = "아, 나";
+    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "래") {
+        nextWord = "내";
+    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "로") {
+        nextWord = "노";
+    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "루") {
+        nextWord = "누";
+    } else if (Hangul.assemble([disWord[0], disWord[1]]) == "르") {
+        nextWord = "으, 느";
     }
 
     var temp = Hangul.disassemble(nextWord);
@@ -237,4 +250,59 @@ function whatisNext(word) {
         return result + Hangul.assemble([temp[0], temp[1], disWord[2], disWord[3]]);
     }
 
+}
+
+function isitHanbang(word) {
+
+    let result = false;
+
+    let hanbangWords = ["릇", "녘", "럼", "렁", "켓", "섯", "뀌", "쁨",
+        "늄", "륨", "븀", "껑", "귿", "즘", "듭", "듬", "늬", "릎", "뺌", "츠", "갗", "탉", "믄", "긶", "읓",
+        "읔", "븀", "읗"]
+    console.log(word.charAt(word.length - 1));
+    for (var a of hanbangWords) {
+        if (word.charAt(word.length - 1) == a) {
+            result = true;
+        }
+    }
+
+    return result;
+
+}
+
+
+
+const whatsMean = async (word) => {
+    return new Promise(function (resolve, reject) {
+
+        var url = "https://m.kpedia.jp/s/1/" + word;
+
+        request(encodeURI(url), (err, response, body) => {
+            if (err) throw err;
+          
+            var $ = cheerio.load(body);
+            var parse = $('html body div.container table.school-course tbody tr td a');
+
+            try {
+                var resultKey = parse[0].children[0].children[0].data;
+            } catch {
+                resolve("検索結果なし");
+            }
+            
+
+            try {
+                var result = parse[1].children[0].data;
+            } catch {
+                resolve("検索結果なし");
+            }
+
+            if(resultKey == word){
+                resolve(result);
+            } else {
+                resolve("検索結果なし");
+            }
+            
+            
+        });
+    });
 }
